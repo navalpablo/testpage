@@ -358,8 +358,8 @@ function showDownload() {
 function initializeViewer() {
     const params = {
         "worldSpace": true,
-        "images": ["path/to/your/template.nii.gz", "path/to/your/atlas.nii.gz"],
-        "atlas": "path/to/your/atlas.nii.gz",
+        "images": ["template.nii.gz", "atlas.nii.gz"],
+        "atlas": "atlas.nii.gz",
         "atlasLabelMap": regions
     };
     papaya.Container.addViewer("viewer-container", params);
