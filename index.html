@@ -58,15 +58,22 @@
             line-height: 1.6;
             margin-bottom: 10px;
         }
+        #viewerContainer {
+            display: flex;
+            justify-content: space-between;
+        }
         #papayaContainer {
-            width: 100%;
+            width: 70%;
             height: 600px;
-            margin: 0 auto;
         }
         #regionControls {
-            max-height: 300px;
+            width: 28%;
+            height: 600px;
             overflow-y: auto;
-            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
         .region-toggle {
             margin-bottom: 5px;
@@ -108,7 +115,7 @@
 
     // Function to load region labels
     function loadRegionLabels() {
-        fetch('data/region_labels.txt')
+        return fetch('data/region_labels.txt')
             .then(response => response.text())
             .then(text => {
                 text.split('\n').forEach(line => {
@@ -124,7 +131,11 @@
     // Load region labels when the page loads
     window.onload = function() {
         papaya.Container.startPapaya();
-        loadRegionLabels();
+        loadRegionLabels().then(() => {
+            if (window.location.hash === '#viewer') {
+                showViewer();
+            }
+        });
     };
 
     function showHome() {
@@ -140,17 +151,19 @@
         const container = document.getElementById('content');
         container.innerHTML = `
             <h2>Interactive Brain Atlas Viewer</h2>
-            <div id="papayaContainer"></div>
-            <div id="regionControls"></div>
+            <div id="viewerContainer">
+                <div id="papayaContainer"></div>
+                <div id="regionControls"></div>
+            </div>
         `;
 
         try {
             params = [];
             params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz'];
             params['atlas.nii.gz'] = {
-                lut: "Random",
-                alpha: 0.7,
-                min: 1,
+                lut: "Spectrum",
+                alpha: 0.5,
+                min: 0,
                 max: 45
             };
 
@@ -188,17 +201,7 @@
     function toggleRegion(viewer, regionIndex, isVisible) {
         const atlas = viewer.screenVolumes[1];
         if (atlas) {
-            if (isVisible) {
-                atlas.updateMinLookup(Math.min(atlas.minLookup, regionIndex));
-                atlas.updateMaxLookup(Math.max(atlas.maxLookup, regionIndex));
-            } else {
-                if (regionIndex === atlas.minLookup) {
-                    atlas.updateMinLookup(regionIndex + 1);
-                }
-                if (regionIndex === atlas.maxLookup) {
-                    atlas.updateMaxLookup(regionIndex - 1);
-                }
-            }
+            atlas.volume.setVoxelValue(regionIndex, isVisible ? regionIndex : 0);
             viewer.drawViewer(true);
         }
     }
