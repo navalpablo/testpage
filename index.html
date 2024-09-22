@@ -5,11 +5,8 @@
     <title>Brain Atlas for X-ALD MRI Severity Score</title>
     <meta name="description" content="Explore our interactive Brain Atlas tailored for MRI severity scoring in X-linked adrenoleukodystrophy (X-ALD), developed by leading researchers.">
     <meta name="keywords" content="X-ALD, Brain Atlas, MRI, Severity Scoring, Neurology, Adrenoleukodystrophy">
-    
-    <!-- Papaya Viewer CSS and JS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/papaya-viewer@2.0.0-alpha.1/build/papaya.css" />
-    <script src="https://cdn.jsdelivr.net/npm/papaya-viewer@2.0.0-alpha.1/build/papaya.js"></script>
-
+    <link rel="stylesheet" type="text/css" href="papaya/papaya.css">
+    <script type="text/javascript" src="papaya/papaya.js"></script>
     <style>
         body, html {
             height: 100%;
@@ -61,21 +58,10 @@
             line-height: 1.6;
             margin-bottom: 10px;
         }
-        #viewer-container {
-            width: 70%;
-            float: left;
-        }
-        #region-toggles {
-            width: 30%;
-            float: right;
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        .toggle-item {
-            margin-bottom: 5px;
-        }
-        .toggle-item label {
-            margin-left: 5px;
+        #papayaContainer {
+            width: 100%;
+            height: 600px;
+            margin: 0 auto;
         }
     </style>
 </head>
@@ -83,332 +69,122 @@
 
 <div class="sidebar">
     <a href="#" onclick="showHome()"><strong>Home</strong></a>
+    <a href="#" onclick="showViewer()"><strong>Interactive Viewer</strong></a>
     <a href="#" onclick="showLoesScore()"><strong>Loes Score</strong></a>
-    <a href="#" onclick="showAtlasViewer()"><strong>Atlas Viewer</strong></a>
-    <a href="#" onclick="showDownload()"><strong>DOWNLOAD</strong></a>
+    <a href="#" onclick="showDownload()"><strong>Download</strong></a>
+    <a></a>
+    <a></a>
     <a href="https://idi.gencat.cat/" target="_blank">
-        <img src="images/IDI.gif" alt="IDI Logo" style="width: 100%; height: auto;">
+        <img src="images/IDI.gif" alt="IDI Logo">
     </a>
     <a href="https://bellvitgehospital.cat/ca" target="_blank">
-        <img src="images/Bellvitge.png" alt="Bellvitge Hospital Universitari Logo" style="width: 100%; height: auto;">
+        <img src="images/Bellvitge.png" alt="Bellvitge Hospital Universitari Logo">
     </a>
     <a href="https://idibell.cat/es/" target="_blank">
-        <img src="images/IDIBELL.png" alt="IDIBELL Logo" style="width: 100%; height: auto;">
-    </a>	
+        <img src="images/IDIBELL.png" alt="IDIBELL Logo">
+    </a>
 </div>
 
 <div class="main">
     <div id="content" class="content">
-        <!-- Content will be loaded here -->
+        <h2>Welcome to the Brain Atlas for X-ALD</h2>
+        <p>This educational website provides an interactive visual way to explore the atlas for X-linked adrenoleukodystrophy (X-ALD) developed by Naval-Baudin et al. (2024), which is based on the descriptions of the X-ALD Disease Severity Scoring method described by <a href="https://www.ajnr.org/content/15/9/1761" target="_blank">Loes et al. (1994)</a>.</p>
+        <p>The atlas and this visual tool have been developed with contributions from researchers at the Bellvitge University Hospital, Institut de Diagnostic per la Imatge, and IDIBELL, aiming to make the evaluation of disease severity as accessible as possible.</p>
     </div>
 </div>
 
-<script>
-const regions = {
-    "ACCOUSTIC_BRACHIUM_LEFT": 1,
-    "ACCOUSTIC_BRACHIUM_RIGHT": 2,
-    "ACCOUSTIC_LATERAL_LEMNISCUS_LEFT": 3,
-    "ACCOUSTIC_LATERAL_LEMNISCUS_RIGHT": 4,
-    "ACCOUSTIC_MEDIAL_GENICULATE_LEFT": 5,
-    "ACCOUSTIC_MEDIAL_GENICULATE_RIGHT": 6,
-    "ACCOUSTIC_PONS_LEFT": 7,
-    "ACCOUSTIC_PONS_RIGHT": 8,
-    "ANTERIOR_TEMPORAL_DEEP_LEFT": 9,
-    "ANTERIOR_TEMPORAL_DEEP_RIGHT": 10,
-    "ANTERIOR_TEMPORAL_MIDDLE_LEFT": 11,
-    "ANTERIOR_TEMPORAL_MIDDLE_RIGHT": 12,
-    "ANTERIOR_TEMPORAL_SUPERF_LEFT": 13,
-    "ANTERIOR_TEMPORAL_SUPERF_RIGHT": 14,
-    "CORPUS_CALLOSUM_BODY": 15,
-    "CORPUS_CALLOSUM_GENU": 16,
-    "CORPUS_CALLOSUM_SPLENIUM": 17,
-    "CORTICOSPINAL_BRAINSTEM_LEFT": 18,
-    "CORTICOSPINAL_BRAINSTEM_RIGHT": 19,
-    "CORTICOSPINAL_INTERNAL_CAPSULE_LEFT": 20,
-    "CORTICOSPINAL_INTERNAL_CAPSULE_RIGHT": 21,
-    "FRONTAL_DEEP_LEFT": 22,
-    "FRONTAL_DEEP_RIGHT": 23,
-    "FRONTAL_MIDDLE_LEFT": 24,
-    "FRONTAL_MIDDLE_RIGHT": 25,
-    "FRONTAL_SUPERF_LEFT": 26,
-    "FRONTAL_SUPERF_RIGHT": 27,
-    "MISC_BASAL_GANGLIA_LEFT": 28,
-    "MISC_BASAL_GANGLIA_RIGHT": 29,
-    "MISC_CEREBELLUM_LEFT": 30,
-    "MISC_CEREBELLUM_RIGHT": 31,
-    "OPTIC_LATERAL_GENICULATE_LEFT": 32,
-    "OPTIC_LATERAL_GENICULATE_RIGHT": 33,
-    "OPTIC_MEYERS_LOOP_LEFT": 34,
-    "OPTIC_MEYERS_LOOP_RIGHT": 35,
-    "OPTIC_RADIATIONS_LEFT": 36,
-    "OPTIC_RADIATIONS_RIGHT": 37,
-    "PARIETO-OCCIPITAL_DEEP_LEFT": 38,
-    "PARIETO-OCCIPITAL_DEEP_RIGHT": 39,
-    "PARIETO-OCCIPITAL_MIDDLE_LEFT": 40,
-    "PARIETO-OCCIPITAL_MIDDLE_RIGHT": 41,
-    "PARIETO-OCCIPITAL_SUPERF_LEFT": 42,
-    "PARIETO-OCCIPITAL_SUPERF_RIGHT": 43,
-    "THALAMUS_ANTERIOR_LEFT": 44,
-    "THALAMUS_ANTERIOR_RIGHT": 45
-};
+<script type="text/javascript">
+    var params = [];
+    var papayaContainers = [];
 
-function showHome() {
-    const container = document.getElementById('content');
-    container.innerHTML = `
-        <h2>Welcome to the Brain Atlas for X-ALD</h2>
-        <p>This educational website provides an interactive visual way to explore the atlas for X-linked adrenoleukodystrophy (X-ALD) developed by Naval-Baudin et al (2024), which is based on the descriptions of the X-ALD Disease Severity Scoring method described by <a href="https://www.ajnr.org/content/15/9/1761" target="_blank">Loes et al (1994)</a>.</p>
-        <p>The atlas and this visual tool have been developed with contributions from researchers at the Bellvitge University Hospital, Institut de Diagnostic per la Imatge, and IDIBELL, aiming to make the evaluation of disease severity as accessible as possible.</p>
-    `;
+    function showHome() {
+        const container = document.getElementById('content');
+        container.innerHTML = `
+            <h2>Welcome to the Brain Atlas for X-ALD</h2>
+            <p>This educational website provides an interactive visual way to explore the atlas for X-linked adrenoleukodystrophy (X-ALD) developed by Naval-Baudin et al. (2024), which is based on the descriptions of the X-ALD Disease Severity Scoring method described by <a href="https://www.ajnr.org/content/15/9/1761" target="_blank">Loes et al. (1994)</a>.</p>
+            <p>The atlas and this visual tool have been developed with contributions from researchers at the Bellvitge University Hospital, Institut de Diagnostic per la Imatge, and IDIBELL, aiming to make the evaluation of disease severity as accessible as possible.</p>
+        `;
+    }
 
-function showLoesScore() {
-    const container = document.getElementById('content');
-    container.innerHTML = `
-        <h2>MRI Severity Scoring System by Loes et al (1994)</h2>
-        <p>The scoring system facilitates a detailed assessment of disease progression in X-ALD through MRI observations. Below is the scoring table that quantifies the severity across various brain regions:</p>
-        
-        <table border="1">
-            <thead>
-                <tr>
-                    <th>Anatomical Region</th>
-                    <th>Feature</th>
-                    <th>Points Assigned</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Parietal-Occipital White Matter -->
-                <tr>
-                    <td rowspan="4">PARIETAL-OCCIPITAL WHITE MATTER</td>
-                    <td>Periventricular</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Central</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Subcortical</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Atrophy</td>
-                    <td>1</td>
-                </tr>
-                <!-- Anterior Temporal White Matter -->
-                <tr>
-                    <td rowspan="4">ANTERIOR TEMPORAL WHITE MATTER</td>
-                    <td>Periventricular</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Central</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Subcortical</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Atrophy</td>
-                    <td>1</td>
-                </tr>
-                <!-- Frontal White Matter -->
-                <tr>
-                    <td rowspan="4">FRONTAL WHITE MATTER</td>
-                    <td>Periventricular</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Central</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Subcortical</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Atrophy</td>
-                    <td>1</td>
-                </tr>
-                <!-- Corpus Callosum -->
-                <tr>
-                    <td rowspan="5">CORPUS CALLOSUM</td>
-                    <td>Splenium</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Body</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Genu</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Atrophy-Splenium</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Atrophy-Genu</td>
-                    <td>1</td>
-                </tr>
-                <!-- Visual Pathway -->
-                <tr>
-                    <td rowspan="3">VISUAL PATHWAY</td>
-                    <td>Optic Radiations</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Lateral Geniculate Body</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Meyer’s Loop</td>
-                    <td>1</td>
-                </tr>
-                <!-- Auditory Pathway -->
-                <tr>
-                    <td rowspan="4">AUDITORY PATHWAY</td>
-                    <td>Medial Geniculate Body</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Brachium to Inferior Colliculus</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Lateral Lemniscus (Midbrain)</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Lateral Lemniscus (Pons)</td>
-                    <td>1</td>
-                </tr>
-                <!-- Projection Fibers -->
-                <tr>
-                    <td rowspan="2">PROJECTION FIBERS</td>
-                    <td>Internal Capsule</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Brain Stem</td>
-                    <td>1</td>
-                </tr>
-                <!-- Miscellaneous -->
-                <tr>
-                    <td rowspan="3">MISCELLANEOUS</td>
-                    <td>Basal Ganglia</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Cerebellum</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Anterior Thalamus</td>
-                    <td>1</td>
-                </tr>
-                <!-- Atrophy -->
-                <tr>
-                    <td rowspan="3">ATROPHY</td>
-                    <td>Global</td>
-                    <td>1-3</td>
-                </tr>
-                <tr>
-                    <td>Brain Stem</td>
-                    <td>1</td>
-                </tr>
-                <tr>
-                    <td>Cerebellar</td>
-                    <td>1</td>
-                </tr>
-                <!-- Maximum Severity Score -->
-                <tr>
-                    <td colspan="3"><strong>MAXIMUM SEVERITY SCORE: 34</strong></td>
-                </tr>
-            </tbody>
-        </table>
-        <p></p>
+    function showViewer() {
+        const container = document.getElementById('content');
+        container.innerHTML = `
+            <h2>Interactive Brain Atlas Viewer</h2>
+            <div id="papayaContainer"></div>
+        `;
 
-    `;
-}
+        try {
+            params = [];
+            params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz'];
+            params['atlas.nii.gz'] = {
+                lut: "Red Overlay",
+                alpha: 0.5
+            };
+            params['atlas'] = {
+                type: "label",
+                labels: "data/region_labels.txt"
+            };
 
-function showAtlasViewer() {
-    const container = document.getElementById('content');
-    container.innerHTML = `
-        <h2>Interactive Atlas Viewer</h2>
-        <div id="viewer-container"></div>
-        <div id="region-toggles"></div>
-    `;
-    initializeViewer();
-    createRegionToggles();
-}
+            papaya.Container.addViewer("papayaContainer", params);
+        } catch (error) {
+            console.error("Error initializing Papaya viewer:", error);
+            container.innerHTML += `<p>Error loading viewer: ${error.message}</p>`;
+        }
+    }
 
-function showDownload() {
-    const container = document.getElementById('content');
-    container.innerHTML = `
-        <h3>Download the X-ALD Atlas in FSL MNI152 space</h3>
-        <p><a href="https://zenodo.org/records/11047634" target="_blank">Download the atlas files in MNI152 space in our Zenodo repository.</a> [Link will be activated upon definitive peer-reviewed publication] </p>        
-        <h3>Licensing Information</h3>
-        <p>All content available on this website, including images and data from the Brain Atlas for X-ALD, is licensed for free use, including commercial purposes, provided that appropriate credit is given to the original source. Users are encouraged to share, copy, distribute, and transmit the work or adapt it to suit their professional needs, as long as proper acknowledgment is provided to 'Naval-Baudin et al (2024)' [yet unpublished] and linked publications.</p>
-        <h3>Contact</h3>
-        <p>For queries or suggestions, please contact <strong><a href="mailto:pablo.naval.idi@gencat.cat">pablo.naval.idi@gencat.cat</a></strong>.</p>
-    `;
-}
+    function showLoesScore() {
+        const container = document.getElementById('content');
+        container.innerHTML = `
+            <h2>MRI Severity Scoring System by Loes et al. (1994)</h2>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>Anatomical Region</th>
+                        <th>Feature</th>
+                        <th>Points Assigned</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Parietal-Occipital White Matter -->
+                    <tr>
+                        <td rowspan="4">PARIETAL-OCCIPITAL WHITE MATTER</td>
+                        <td>Periventricular</td>
+                        <td>1</td>
+                    </tr>
+                    <tr>
+                        <td>Central</td>
+                        <td>1</td>
+                    </tr>
+                    <tr>
+                        <td>Subcortical</td>
+                        <td>1</td>
+                    </tr>
+                    <tr>
+                        <td>Atrophy</td>
+                        <td>1</td>
+                    </tr>
+                    <!-- Add more rows for other anatomical regions -->
+                </tbody>
+            </table>
+        `;
+    }
 
-function initializeViewer() {
-    const params = {
-        "worldSpace": true,
-        "images": ["template.nii.gz", "atlas.nii.gz"],
-        "atlas": "atlas.nii.gz",
-        "atlasLabelMap": regions
+    function showDownload() {
+        const container = document.getElementById('content');
+        container.innerHTML = `
+            <h3>Download the X-ALD Atlas in FSL MNI152 space</h3>
+            <p><a href="https://zenodo.org/records/11047634" target="_blank">Download the atlas files in MNI152 space in our Zenodo repository.</a> [Link will be activated upon definitive peer-reviewed publication]</p>
+            <h3>Licensing Information</h3>
+            <p>All content available on this website, including images and data from the Brain Atlas for X-ALD, is licensed for free use, including commercial purposes, provided that appropriate credit is given to the original source. Users are encouraged to share, copy, distribute, and transmit the work or adapt it to suit their professional needs, as long as proper acknowledgment is provided to 'Naval-Baudin et al. (2024)' [yet unpublished] and linked publications.</p>
+            <h3>Contact</h3>
+            <p>For queries or suggestions, please contact <strong><a href="mailto:pablo.naval.idi@gencat.cat">pablo.naval.idi@gencat.cat</a></strong>.</p>
+        `;
+    }
+
+    // Initialize Papaya when the page loads
+    window.onload = function() {
+        papaya.Container.startPapaya();
     };
-    papaya.Container.addViewer("viewer-container", params);
-}
-
-function createRegionToggles() {
-    const container = document.getElementById('region-toggles');
-    for (const [region, value] of Object.entries(regions)) {
-        const toggleItem = document.createElement('div');
-        toggleItem.className = 'toggle-item';
-
-        const toggle = document.createElement('input');
-        toggle.type = 'checkbox';
-        toggle.id = region;
-        toggle.checked = true;
-        toggle.onchange = () => toggleRegion(value, toggle.checked);
-        
-        const label = document.createElement('label');
-        label.htmlFor = region;
-        label.textContent = region.replace(/_/g, ' ').toLowerCase();
-
-        toggleItem.appendChild(toggle);
-        toggleItem.appendChild(label);
-        container.appendChild(toggleItem);
-    }
-}
-function toggleRegion(regionValue, isVisible) {
-    // Get the current Papaya container
-    var container = papaya.Container.getAllContainers()[0];
-    
-    // Get the current viewer
-    var viewer = container.viewer;
-    
-    // Get the atlas volume
-    var atlas = viewer.screenVolumes[1];  // Assuming atlas is the second loaded volume
-    
-    if (isVisible) {
-        // Show the region
-        atlas.updateLabelColors([regionValue], [1, 1, 1, 0.7]);  // White color with 70% opacity
-    } else {
-        // Hide the region
-        atlas.updateLabelColors([regionValue], [0, 0, 0, 0]);  // Fully transparent
-    }
-    
-    // Refresh the viewer
-    viewer.drawViewer(true);
-}
-
-window.onload = showHome;
 </script>
 
 </body>
