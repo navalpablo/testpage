@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>New3___Brain Atlas for X-ALD MRI Severity Score</title>
+    <title>Brain Atlas for X-ALD MRI Severity Score</title>
     <meta name="description" content="Explore our interactive Brain Atlas tailored for MRI severity scoring in X-linked adrenoleukodystrophy (X-ALD), developed by leading researchers.">
     <meta name="keywords" content="X-ALD, Brain Atlas, MRI, Severity Scoring, Neurology, Adrenoleukodystrophy">
     <link rel="stylesheet" type="text/css" href="papaya/papaya.css">
@@ -78,13 +78,20 @@
             border: 1px solid #ddd;
             border-radius: 5px;
         }
-        .region-label {
-            padding: 5px;
+        .region-toggle {
             margin-bottom: 5px;
-            cursor: pointer;
         }
-        .region-label:hover {
-            background-color: #f0f0f0;
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
         }
     </style>
 </head>
@@ -121,8 +128,6 @@
     var papayaContainers = [];
     var regionLabels = {};
     var currentViewer = null;
-    var regionFiles = [];
-    var currentRegionIndex = -1;
 
     // Function to load region labels
     function loadRegionLabels() {
@@ -133,11 +138,13 @@
                     if (line.trim() !== '') {
                         const [index, shortName, fullName] = line.split('\t');
                         regionLabels[index] = { shortName, fullName };
-                        regionFiles.push(`data/individual_regions/${index.padStart(2, '0')}_${fullName.replace(/ /g, '_')}.nii.gz`);
                     }
                 });
             })
-            .catch(error => console.error('Error loading region labels:', error));
+            .catch(error => {
+                console.error('Error loading region labels:', error);
+                throw error;
+            });
     }
 
     // Load region labels when the page loads
@@ -147,6 +154,8 @@
             if (window.location.hash === '#viewer') {
                 showViewer();
             }
+        }).catch(error => {
+            document.getElementById('content').innerHTML += `<p class="error">Error loading region labels: ${error.message}</p>`;
         });
     };
 
@@ -164,14 +173,16 @@
         container.innerHTML = `
             <h2>Interactive Brain Atlas Viewer</h2>
             <div id="viewerContainer">
-                <div id="papayaContainer"></div>
+                <div id="papayaContainer">
+                    <div id="loading">Loading viewer...</div>
+                </div>
                 <div id="regionControls"></div>
             </div>
         `;
 
         try {
             params = [];
-            params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz', ...regionFiles];
+            params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz'];
             params['atlas.nii.gz'] = {
                 lut: "Spectrum",
                 alpha: 0.5,
@@ -179,64 +190,95 @@
                 max: 45
             };
 
-            // Set initial parameters for region files (hidden)
-            regionFiles.forEach((file, index) => {
-                params[file] = {
-                    lut: "Spectrum",
-                    alpha: 0.5,
-                    min: 0,
-                    max: 1,
-                    hidden: true
-                };
-            });
-
             papaya.Container.addViewer("papayaContainer", params, function(err, viewer) {
                 if (err) {
                     console.error("Error loading viewer:", err);
-                    container.innerHTML += `<p>Error loading viewer: ${err.message}</p>`;
+                    document.getElementById('loading').innerHTML = `<p class="error">Error loading viewer: ${err.message}</p>`;
                 } else {
                     console.log("Viewer loaded successfully");
                     currentViewer = viewer;
-                    createRegionLabels(viewer);
+                    
+                    // Wait for the viewer to fully load before creating toggles
+                    viewer.loadingComplete = function() {
+                        document.getElementById('loading').style.display = 'none';
+                        createRegionToggles(viewer);
+                    };
                 }
             });
         } catch (error) {
             console.error("Error initializing Papaya viewer:", error);
-            container.innerHTML += `<p>Error loading viewer: ${error.message}</p>`;
+            document.getElementById('loading').innerHTML = `<p class="error">Error loading viewer: ${error.message}</p>`;
         }
     }
 
-    function createRegionLabels(viewer) {
+    function createRegionToggles(viewer) {
         const controlsContainer = document.getElementById('regionControls');
-        Object.entries(regionLabels).forEach(([index, { shortName, fullName }], i) => {
-            const label = document.createElement('div');
-            label.className = 'region-label';
-            label.textContent = fullName;
-            label.addEventListener('mouseover', () => showRegion(viewer, i + 2)); // +2 because template and full atlas are first two images
-            label.addEventListener('mouseout', () => showFullAtlas(viewer));
-            controlsContainer.appendChild(label);
+        controlsContainer.innerHTML = '<h3>Region Controls</h3>';
+        
+        // Add "Toggle All" checkbox
+        const toggleAllDiv = document.createElement('div');
+        toggleAllDiv.innerHTML = `
+            <input type="checkbox" id="toggleAll" checked>
+            <label for="toggleAll">Toggle All Regions</label>
+        `;
+        toggleAllDiv.querySelector('input').addEventListener('change', function() {
+            const isChecked = this.checked;
+            Object.keys(regionLabels).forEach(index => {
+                const checkbox = document.getElementById(`region${index}`);
+                if (checkbox) {
+                    checkbox.checked = isChecked;
+                    toggleRegion(viewer, parseInt(index), isChecked);
+                }
+            });
+        });
+        controlsContainer.appendChild(toggleAllDiv);
+
+        Object.entries(regionLabels).forEach(([index, { shortName, fullName }]) => {
+            const toggle = document.createElement('div');
+            toggle.className = 'region-toggle';
+            toggle.innerHTML = `
+                <input type="checkbox" id="region${index}" checked aria-label="${fullName}">
+                <label for="region${index}">${fullName}</label>
+            `;
+            toggle.querySelector('input').addEventListener('change', function() {
+                toggleRegion(viewer, parseInt(index), this.checked);
+            });
+            controlsContainer.appendChild(toggle);
         });
     }
 
-    function showRegion(viewer, index) {
-        if (currentRegionIndex !== -1) {
-            viewer.screenVolumes[currentRegionIndex].hidden = true;
+    function toggleRegion(viewer, regionIndex, isVisible) {
+        if (!viewer || !viewer.screenVolumes || viewer.screenVolumes.length < 2) {
+            console.error("Viewer or atlas not properly loaded");
+            return;
         }
-        
-        viewer.screenVolumes[1].hidden = true; // Hide full atlas
-        viewer.screenVolumes[index].hidden = false;
-        viewer.screenVolumes[index].alpha = 0.5;
-        viewer.drawViewer(true);
-        
-        currentRegionIndex = index;
-    }
 
-    function showFullAtlas(viewer) {
-        if (currentRegionIndex !== -1) {
-            viewer.screenVolumes[currentRegionIndex].hidden = true;
-            viewer.screenVolumes[1].hidden = false; // Show full atlas
-            viewer.drawViewer(true);
-            currentRegionIndex = -1;
+        const atlas = viewer.screenVolumes[1];
+        if (!atlas || !atlas.volume) {
+            console.error("Atlas volume not found");
+            return;
+        }
+
+        const dims = atlas.volume.header.imageDimensions;
+        let changed = false;
+
+        for (let z = 0; z < dims.zDim; z++) {
+            for (let y = 0; y < dims.yDim; y++) {
+                for (let x = 0; x < dims.xDim; x++) {
+                    const value = atlas.volume.getVoxelAtIndex(x, y, z, 0);
+                    if (value === regionIndex) {
+                        atlas.volume.setVoxelAtIndex(x, y, z, 0, isVisible ? regionIndex : 0);
+                        changed = true;
+                    }
+                }
+            }
+        }
+
+        if (changed) {
+            atlas.updateMin();
+            atlas.updateMax();
+            atlas.modified = true;
+            viewer.drawViewer(true, false);
         }
     }
 
