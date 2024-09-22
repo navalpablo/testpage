@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>New2__Brain Atlas for X-ALD MRI Severity Score</title>
+    <title>New3___Brain Atlas for X-ALD MRI Severity Score</title>
     <meta name="description" content="Explore our interactive Brain Atlas tailored for MRI severity scoring in X-linked adrenoleukodystrophy (X-ALD), developed by leading researchers.">
     <meta name="keywords" content="X-ALD, Brain Atlas, MRI, Severity Scoring, Neurology, Adrenoleukodystrophy">
     <link rel="stylesheet" type="text/css" href="papaya/papaya.css">
@@ -171,13 +171,24 @@
 
         try {
             params = [];
-            params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz'];
+            params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz', ...regionFiles];
             params['atlas.nii.gz'] = {
                 lut: "Spectrum",
                 alpha: 0.5,
                 min: 0,
                 max: 45
             };
+
+            // Set initial parameters for region files (hidden)
+            regionFiles.forEach((file, index) => {
+                params[file] = {
+                    lut: "Spectrum",
+                    alpha: 0.5,
+                    min: 0,
+                    max: 1,
+                    hidden: true
+                };
+            });
 
             papaya.Container.addViewer("papayaContainer", params, function(err, viewer) {
                 if (err) {
@@ -197,11 +208,11 @@
 
     function createRegionLabels(viewer) {
         const controlsContainer = document.getElementById('regionControls');
-        Object.entries(regionLabels).forEach(([index, { shortName, fullName }]) => {
+        Object.entries(regionLabels).forEach(([index, { shortName, fullName }], i) => {
             const label = document.createElement('div');
             label.className = 'region-label';
             label.textContent = fullName;
-            label.addEventListener('mouseover', () => showRegion(viewer, index));
+            label.addEventListener('mouseover', () => showRegion(viewer, i + 2)); // +2 because template and full atlas are first two images
             label.addEventListener('mouseout', () => showFullAtlas(viewer));
             controlsContainer.appendChild(label);
         });
@@ -209,17 +220,12 @@
 
     function showRegion(viewer, index) {
         if (currentRegionIndex !== -1) {
-            viewer.screenVolumes[1].hidden = true;
+            viewer.screenVolumes[currentRegionIndex].hidden = true;
         }
         
-        const regionFile = regionFiles[index - 1];
-        if (!viewer.screenVolumes[2] || viewer.screenVolumes[2].filename !== regionFile) {
-            papaya.Container.addImage(0, regionFile);
-        }
-        
-        viewer.screenVolumes[2].hidden = false;
-        viewer.screenVolumes[2].alpha = 0.5;
-        viewer.screenVolumes[2].findImageRange();
+        viewer.screenVolumes[1].hidden = true; // Hide full atlas
+        viewer.screenVolumes[index].hidden = false;
+        viewer.screenVolumes[index].alpha = 0.5;
         viewer.drawViewer(true);
         
         currentRegionIndex = index;
@@ -227,8 +233,8 @@
 
     function showFullAtlas(viewer) {
         if (currentRegionIndex !== -1) {
-            viewer.screenVolumes[2].hidden = true;
-            viewer.screenVolumes[1].hidden = false;
+            viewer.screenVolumes[currentRegionIndex].hidden = true;
+            viewer.screenVolumes[1].hidden = false; // Show full atlas
             viewer.drawViewer(true);
             currentRegionIndex = -1;
         }
