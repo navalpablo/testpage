@@ -135,14 +135,16 @@
     }
 
     // Load region labels when the page loads
-    window.onload = function() {
-        papaya.Container.startPapaya();
-        loadRegionLabels().then(() => {
-            if (window.location.hash === '#viewer') {
-                showViewer();
-            }
-        });
-    };
+		
+	window.onload = function() {
+		loadRegionLabels().then(() => {
+			if (window.location.hash === '#viewer') {
+				showViewer();
+			} else {
+				showHome();
+			}
+		});
+	};
 
     function showHome() {
         const container = document.getElementById('content');
@@ -153,65 +155,69 @@
         `;
     }
 
-    function showViewer() {
-        const container = document.getElementById('content');
-        container.innerHTML = `
-            <h2>Interactive Brain Atlas Viewer</h2>
-            <div id="viewerContainer">
-                <div id="papayaContainer"></div>
-                <div id="regionControls"></div>
-            </div>
-        `;
 
-        try {
-            params = [];
-            params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz'];
-            params['atlas.nii.gz'] = {
-                lut: "Spectrum",
-                alpha: 0.5,
-                min: 0,
-                max: 45
-            };
 
-            papaya.Container.addViewer("papayaContainer", params, function(err, viewer) {
-                if (err) {
-                    console.error("Error loading viewer:", err);
-                    container.innerHTML += `<p>Error loading viewer: ${err.message}</p>`;
-                } else {
-                    console.log("Viewer loaded successfully");
-                    if (!viewer) {
-                        console.error("Viewer object is undefined");
-                        container.innerHTML += `<p>Error: Viewer object is undefined</p>`;
-                        return;
-                    }
-                    currentViewer = viewer;
-                    
-                    // Wait for images to load
-                    papaya.Container.addImage(0, params['images'][0], function() {
-                        papaya.Container.addImage(0, params['images'][1], function() {
-                            if (viewer.screenVolumes && viewer.screenVolumes.length > 1) {
-                                atlasVolume = viewer.screenVolumes[1].volume;
-                                if (atlasVolume && atlasVolume.imageData) {
-                                    originalAtlasData = new Uint8Array(atlasVolume.imageData.buffer);
-                                    createRegionToggles(viewer);
-                                } else {
-                                    console.error("Atlas volume or imageData is undefined");
-                                    container.innerHTML += `<p>Error: Atlas data not found</p>`;
-                                }
-                            } else {
-                                console.error("Screen volumes not properly loaded");
-                                container.innerHTML += `<p>Error: Image data not properly loaded</p>`;
-                            }
-                        });
-                    });
-                }
-            });
-        } catch (error) {
-            console.error("Error initializing Papaya viewer:", error);
-            container.innerHTML += `<p>Error loading viewer: ${error.message}</p>`;
-        }
-    }
+	
+	function showViewer() {
+		const container = document.getElementById('content');
+		container.innerHTML = `
+			<h2>Interactive Brain Atlas Viewer</h2>
+			<div id="viewerContainer">
+				<div class="papaya" data-params="params"></div>
+				<div id="regionControls"></div>
+			</div>
+		`;
 
+		try {
+			params = [];
+			params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz'];
+			params['atlas.nii.gz'] = {
+				lut: "Spectrum",
+				alpha: 0.5,
+				min: 0,
+				max: 45
+			};
+
+			// Initialize Papaya
+			papaya.Container.startPapaya();
+
+			// Wait for the viewer to be created
+			const checkViewer = setInterval(() => {
+				if (papayaContainers && papayaContainers.length > 0) {
+					clearInterval(checkViewer);
+					currentViewer = papayaContainers[0].viewer;
+					
+					if (currentViewer) {
+						console.log("Viewer loaded successfully");
+						
+						// Wait for images to load
+						const checkImages = setInterval(() => {
+							if (currentViewer.screenVolumes && currentViewer.screenVolumes.length > 1) {
+								clearInterval(checkImages);
+								atlasVolume = currentViewer.screenVolumes[1].volume;
+								
+								if (atlasVolume && atlasVolume.imageData) {
+									originalAtlasData = new Uint8Array(atlasVolume.imageData.buffer);
+									createRegionToggles(currentViewer);
+								} else {
+									console.error("Atlas volume or imageData is undefined");
+									container.innerHTML += `<p>Error: Atlas data not found</p>`;
+								}
+							}
+						}, 100);
+					} else {
+						console.error("Viewer object is undefined");
+						container.innerHTML += `<p>Error: Viewer object is undefined</p>`;
+					}
+				}
+			}, 100);
+
+		} catch (error) {
+			console.error("Error initializing Papaya viewer:", error);
+			container.innerHTML += `<p>Error loading viewer: ${error.message}</p>`;
+		}
+	}
+	
     function createRegionToggles(viewer) {
         const controlsContainer = document.getElementById('regionControls');
         Object.entries(regionLabels).forEach(([index, { shortName, fullName }]) => {
