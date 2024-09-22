@@ -81,10 +81,6 @@
         .region-toggle {
             margin-bottom: 5px;
         }
-        .region-toggle label {
-            margin-left: 5px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
@@ -120,10 +116,9 @@
     var papayaContainers = [];
     var regionLabels = {};
     var currentViewer = null;
-    var atlasVolume = null;
-    var originalAtlasData = null;
+    var regionFiles = [];
 
-    // Function to load region labels
+    // Function to load region labels and files
     function loadRegionLabels() {
         return fetch('data/region_labels.txt')
             .then(response => response.text())
@@ -132,20 +127,19 @@
                     if (line.trim() !== '') {
                         const [index, shortName, fullName] = line.split('\t');
                         regionLabels[index] = { shortName, fullName };
+                        regionFiles.push(`data/individual_regions/${index.padStart(2, '0')}_${fullName.replace(/ /g, '_')}.nii.gz`);
                     }
                 });
-                console.log('Loaded region labels:', regionLabels);  // Debugging log
             })
             .catch(error => console.error('Error loading region labels:', error));
     }
 
     // Load region labels when the page loads
     window.onload = function() {
+        papaya.Container.startPapaya();
         loadRegionLabels().then(() => {
             if (window.location.hash === '#viewer') {
                 showViewer();
-            } else {
-                showHome();
             }
         });
     };
@@ -171,13 +165,17 @@
 
         try {
             params = [];
-            params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz'];
-            params['atlas.nii.gz'] = {
-                lut: "Spectrum",
-                alpha: 0.5,
-                min: 0,
-                max: 45
-            };
+            params['images'] = ['data/template.nii.gz', ...regionFiles];
+            
+            // Set parameters for each region file
+            regionFiles.forEach((file, index) => {
+                params[file] = {
+                    lut: "Spectrum",
+                    alpha: 0.5,
+                    min: 0,
+                    max: 1
+                };
+            });
 
             papaya.Container.addViewer("papayaContainer", params, function(err, viewer) {
                 if (err) {
@@ -186,23 +184,7 @@
                 } else {
                     console.log("Viewer loaded successfully");
                     currentViewer = viewer;
-                    
-                    // Wait for images to load
-                    const checkImages = setInterval(() => {
-                        if (viewer.screenVolumes && viewer.screenVolumes.length > 1) {
-                            clearInterval(checkImages);
-                            atlasVolume = viewer.screenVolumes[1].volume;
-                            
-                            if (atlasVolume && atlasVolume.imageData) {
-                                originalAtlasData = new Uint8Array(atlasVolume.imageData.buffer);
-                                createRegionToggles(viewer);
-                                console.log("Region toggles created");  // Debugging log
-                            } else {
-                                console.error("Atlas volume or imageData is undefined");
-                                container.innerHTML += `<p>Error: Atlas data not found</p>`;
-                            }
-                        }
-                    }, 100);
+                    createRegionToggles(viewer);
                 }
             });
         } catch (error) {
@@ -213,9 +195,7 @@
 
     function createRegionToggles(viewer) {
         const controlsContainer = document.getElementById('regionControls');
-        controlsContainer.innerHTML = '<h3>Region Controls</h3>';  // Add a header
-
-        Object.entries(regionLabels).forEach(([index, { shortName, fullName }]) => {
+        Object.entries(regionLabels).forEach(([index, { shortName, fullName }], i) => {
             const toggle = document.createElement('div');
             toggle.className = 'region-toggle';
             toggle.innerHTML = `
@@ -223,39 +203,17 @@
                 <label for="region${index}">${fullName}</label>
             `;
             toggle.querySelector('input').addEventListener('change', function() {
-                toggleRegion(viewer, parseInt(index), this.checked);
+                toggleRegion(viewer, i + 1, this.checked);  // +1 because the template is the first image
             });
             controlsContainer.appendChild(toggle);
         });
-
-        console.log(`Created ${Object.keys(regionLabels).length} region toggles`);  // Debugging log
     }
 
     function toggleRegion(viewer, regionIndex, isVisible) {
-        if (!viewer) {
-            console.error("Viewer is undefined");
-            return;
+        if (viewer && viewer.screenVolumes && viewer.screenVolumes.length > regionIndex) {
+            viewer.screenVolumes[regionIndex].hidden = !isVisible;
+            viewer.drawViewer(true);
         }
-        if (!atlasVolume) {
-            console.error("Atlas volume is undefined");
-            return;
-        }
-        if (!atlasVolume.imageData) {
-            console.error("Atlas image data is undefined");
-            return;
-        }
-        if (!originalAtlasData) {
-            console.error("Original atlas data is undefined");
-            return;
-        }
-
-        const imageData = new Uint8Array(atlasVolume.imageData.buffer);
-        for (let i = 0; i < imageData.length; i++) {
-            if (originalAtlasData[i] === regionIndex) {
-                imageData[i] = isVisible ? regionIndex : 0;
-            }
-        }
-        viewer.drawViewer(true, false);
     }
 
     function showLoesScore() {
