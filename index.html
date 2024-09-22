@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>New1_Brain Atlas for X-ALD MRI Severity Score</title>
+    <title>New2__Brain Atlas for X-ALD MRI Severity Score</title>
     <meta name="description" content="Explore our interactive Brain Atlas tailored for MRI severity scoring in X-linked adrenoleukodystrophy (X-ALD), developed by leading researchers.">
     <meta name="keywords" content="X-ALD, Brain Atlas, MRI, Severity Scoring, Neurology, Adrenoleukodystrophy">
     <link rel="stylesheet" type="text/css" href="papaya/papaya.css">
@@ -78,8 +78,13 @@
             border: 1px solid #ddd;
             border-radius: 5px;
         }
-        .region-toggle {
+        .region-label {
+            padding: 5px;
             margin-bottom: 5px;
+            cursor: pointer;
+        }
+        .region-label:hover {
+            background-color: #f0f0f0;
         }
     </style>
 </head>
@@ -117,8 +122,9 @@
     var regionLabels = {};
     var currentViewer = null;
     var regionFiles = [];
+    var currentRegionIndex = -1;
 
-    // Function to load region labels and files
+    // Function to load region labels
     function loadRegionLabels() {
         return fetch('data/region_labels.txt')
             .then(response => response.text())
@@ -165,17 +171,13 @@
 
         try {
             params = [];
-            params['images'] = ['data/template.nii.gz', ...regionFiles];
-            
-            // Set parameters for each region file
-            regionFiles.forEach((file, index) => {
-                params[file] = {
-                    lut: "Spectrum",
-                    alpha: 0.5,
-                    min: 0,
-                    max: 1
-                };
-            });
+            params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz'];
+            params['atlas.nii.gz'] = {
+                lut: "Spectrum",
+                alpha: 0.5,
+                min: 0,
+                max: 45
+            };
 
             papaya.Container.addViewer("papayaContainer", params, function(err, viewer) {
                 if (err) {
@@ -184,7 +186,7 @@
                 } else {
                     console.log("Viewer loaded successfully");
                     currentViewer = viewer;
-                    createRegionToggles(viewer);
+                    createRegionLabels(viewer);
                 }
             });
         } catch (error) {
@@ -193,26 +195,42 @@
         }
     }
 
-    function createRegionToggles(viewer) {
+    function createRegionLabels(viewer) {
         const controlsContainer = document.getElementById('regionControls');
-        Object.entries(regionLabels).forEach(([index, { shortName, fullName }], i) => {
-            const toggle = document.createElement('div');
-            toggle.className = 'region-toggle';
-            toggle.innerHTML = `
-                <input type="checkbox" id="region${index}" checked>
-                <label for="region${index}">${fullName}</label>
-            `;
-            toggle.querySelector('input').addEventListener('change', function() {
-                toggleRegion(viewer, i + 1, this.checked);  // +1 because the template is the first image
-            });
-            controlsContainer.appendChild(toggle);
+        Object.entries(regionLabels).forEach(([index, { shortName, fullName }]) => {
+            const label = document.createElement('div');
+            label.className = 'region-label';
+            label.textContent = fullName;
+            label.addEventListener('mouseover', () => showRegion(viewer, index));
+            label.addEventListener('mouseout', () => showFullAtlas(viewer));
+            controlsContainer.appendChild(label);
         });
     }
 
-    function toggleRegion(viewer, regionIndex, isVisible) {
-        if (viewer && viewer.screenVolumes && viewer.screenVolumes.length > regionIndex) {
-            viewer.screenVolumes[regionIndex].hidden = !isVisible;
+    function showRegion(viewer, index) {
+        if (currentRegionIndex !== -1) {
+            viewer.screenVolumes[1].hidden = true;
+        }
+        
+        const regionFile = regionFiles[index - 1];
+        if (!viewer.screenVolumes[2] || viewer.screenVolumes[2].filename !== regionFile) {
+            papaya.Container.addImage(0, regionFile);
+        }
+        
+        viewer.screenVolumes[2].hidden = false;
+        viewer.screenVolumes[2].alpha = 0.5;
+        viewer.screenVolumes[2].findImageRange();
+        viewer.drawViewer(true);
+        
+        currentRegionIndex = index;
+    }
+
+    function showFullAtlas(viewer) {
+        if (currentRegionIndex !== -1) {
+            viewer.screenVolumes[2].hidden = true;
+            viewer.screenVolumes[1].hidden = false;
             viewer.drawViewer(true);
+            currentRegionIndex = -1;
         }
     }
 
