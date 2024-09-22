@@ -116,8 +116,8 @@
     var papayaContainers = [];
     var regionLabels = {};
     var currentViewer = null;
-    var regionVoxels = {};
-    var originalData = null;
+    var atlasVolume = null;
+    var originalAtlasData = null;
 
     // Function to load region labels
     function loadRegionLabels() {
@@ -136,11 +136,10 @@
 
     // Load region labels when the page loads
     window.onload = function() {
+        papaya.Container.startPapaya();
         loadRegionLabels().then(() => {
             if (window.location.hash === '#viewer') {
                 showViewer();
-            } else {
-                showHome();
             }
         });
     };
@@ -174,10 +173,6 @@
                 max: 45
             };
 
-            papaya.Container.resetViewer(0, params);
-            papaya.Container.startPapaya();
-
-            // Wait until Papaya is ready
             papaya.Container.addViewer("papayaContainer", params, function(err, viewer) {
                 if (err) {
                     console.error("Error loading viewer:", err);
@@ -185,41 +180,14 @@
                 } else {
                     console.log("Viewer loaded successfully");
                     currentViewer = viewer;
-                    viewer.finishedLoading = function() {
-                        initializeRegionMapping(viewer);
-                        createRegionToggles(viewer);
-                    };
+                    atlasVolume = viewer.screenVolumes[1].volume;
+                    originalAtlasData = new Uint8Array(atlasVolume.imageData.buffer);
+                    createRegionToggles(viewer);
                 }
             });
         } catch (error) {
             console.error("Error initializing Papaya viewer:", error);
             container.innerHTML += `<p>Error loading viewer: ${error.message}</p>`;
-        }
-    }
-
-    function initializeRegionMapping(viewer) {
-        if (viewer && viewer.screenVolumes && viewer.screenVolumes.length > 1) {
-            const atlas = viewer.screenVolumes[1];
-            if (atlas && atlas.volume) {
-                const dims = atlas.volume.header.imageDimensions;
-                const xDim = dims.xDim;
-                const yDim = dims.yDim;
-                const zDim = dims.zDim;
-                const data = atlas.volume.imageData.data;
-                originalData = new Uint8Array(data.length);
-                originalData.set(data);
-                regionVoxels = {};
-                for (let i = 0; i < data.length; i++) {
-                    const value = data[i];
-                    if (value > 0) {
-                        if (!regionVoxels[value]) {
-                            regionVoxels[value] = [];
-                        }
-                        regionVoxels[value].push(i);
-                    }
-                }
-                console.log("Region mapping initialized.");
-            }
         }
     }
 
@@ -240,18 +208,14 @@
     }
 
     function toggleRegion(viewer, regionIndex, isVisible) {
-        if (viewer && viewer.screenVolumes && viewer.screenVolumes.length > 1) {
-            const atlas = viewer.screenVolumes[1];
-            if (atlas && atlas.volume && regionVoxels[regionIndex]) {
-                const data = atlas.volume.imageData.data;
-                const voxels = regionVoxels[regionIndex];
-                for (let i = 0; i < voxels.length; i++) {
-                    const index = voxels[i];
-                    data[index] = isVisible ? originalData[index] : 0;
+        if (viewer && atlasVolume) {
+            const imageData = new Uint8Array(atlasVolume.imageData.buffer);
+            for (let i = 0; i < imageData.length; i++) {
+                if (originalAtlasData[i] === regionIndex) {
+                    imageData[i] = isVisible ? regionIndex : 0;
                 }
-                atlas.imageData = null; // Force refresh
-                viewer.drawViewer(true);
             }
+            viewer.drawViewer(true, false);
         }
     }
 
