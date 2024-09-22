@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Brain Atlas for X-ALD MRI Severity Score</title>
+    <title>Claude_10_Brain Atlas for X-ALD MRI Severity Score</title>
     <meta name="description" content="Explore our interactive Brain Atlas tailored for MRI severity scoring in X-linked adrenoleukodystrophy (X-ALD), developed by leading researchers.">
     <meta name="keywords" content="X-ALD, Brain Atlas, MRI, Severity Scoring, Neurology, Adrenoleukodystrophy">
     <link rel="stylesheet" type="text/css" href="papaya/papaya.css">
@@ -132,21 +132,21 @@
     var atlasVolume = null;
     var originalAtlasData = null;
 
-    // Function to load region labels
-    function loadRegionLabels() {
-        return fetch('data/region_labels.txt')
-            .then(response => response.text())
-            .then(text => {
-                text.split('\n').forEach(line => {
-                    if (line.trim() !== '') {
-                        const [index, shortName, fullName] = line.split('\t');
-                        regionLabels[index] = { shortName, fullName };
-                    }
-                });
-                console.log('Loaded region labels:', regionLabels);  // Debugging log
-            })
-            .catch(error => console.error('Error loading region labels:', error));
-    }
+	function loadRegionLabels() {
+		return fetch('data/region_labels.txt')
+			.then(response => response.text())
+			.then(text => {
+				text.split('\n').forEach(line => {
+					if (line.trim() !== '') {
+						const [fullName, index] = line.split(': ');
+						regionLabels[index] = { shortName: fullName, fullName: fullName };
+					}
+				});
+				console.log('Loaded region labels:', regionLabels);  // Debugging log
+			})
+			.catch(error => console.error('Error loading region labels:', error));
+	}
+
 
     // Load region labels when the page loads
     window.onload = function() {
@@ -222,25 +222,26 @@
         }
     }
 
-    function createRegionToggles(viewer) {
-        const controlsContainer = document.getElementById('regionControls');
-        controlsContainer.innerHTML = '<h3>Region Controls</h3>';  // Add a header
+	function createRegionToggles(viewer) {
+		const controlsContainer = document.getElementById('regionControls');
+		controlsContainer.innerHTML = '<h3>Region Controls</h3>';  // Add a header
 
-        Object.entries(regionLabels).forEach(([index, { shortName, fullName }]) => {
-            const toggle = document.createElement('div');
-            toggle.className = 'region-toggle';
-            toggle.innerHTML = `
-                <input type="checkbox" id="region${index}" checked>
-                <label for="region${index}">${fullName}</label>
-            `;
-            toggle.querySelector('input').addEventListener('change', function() {
-                toggleRegion(viewer, parseInt(index), this.checked);
-            });
-            controlsContainer.appendChild(toggle);
-        });
+		Object.entries(regionLabels).forEach(([index, { fullName }]) => {
+			const toggle = document.createElement('div');
+			toggle.className = 'region-toggle';
+			toggle.innerHTML = `
+				<input type="checkbox" id="region${index}" checked>
+				<label for="region${index}">${fullName}</label>
+			`;
+			toggle.querySelector('input').addEventListener('change', function() {
+				toggleRegion(viewer, parseInt(index), this.checked);
+			});
+			controlsContainer.appendChild(toggle);
+		});
 
-        console.log(`Created ${Object.keys(regionLabels).length} region toggles`);  // Debugging log
-    }
+		console.log(`Created ${Object.keys(regionLabels).length} region toggles`);  // Debugging log
+	}
+
 
     function toggleRegion(viewer, regionIndex, isVisible) {
         if (!viewer) {
