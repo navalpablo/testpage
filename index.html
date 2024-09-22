@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Claude_10_Brain Atlas for X-ALD MRI Severity Score</title>
+    <title>Brain Atlas for X-ALD MRI Severity Score</title>
     <meta name="description" content="Explore our interactive Brain Atlas tailored for MRI severity scoring in X-linked adrenoleukodystrophy (X-ALD), developed by leading researchers.">
     <meta name="keywords" content="X-ALD, Brain Atlas, MRI, Severity Scoring, Neurology, Adrenoleukodystrophy">
     <link rel="stylesheet" type="text/css" href="papaya/papaya.css">
@@ -52,8 +52,6 @@
             background-color: #f5f5f5;
             height: calc(100vh - 40px);
             overflow-y: auto;
-            display: flex;
-            flex-direction: column;
         }
         h1, h2, h3 {
             color: #333;
@@ -65,17 +63,11 @@
         #viewerContainer {
             display: flex;
             justify-content: space-between;
-            height: calc(100vh - 140px);  /* Adjust this value as needed */
-            width: 100%;
+            height: calc(100vh - 100px);
         }
         #papayaContainer {
             width: 70%;
             height: 100%;
-            overflow: hidden;
-        }
-        .papaya {
-            width: 100% !important;  /* Force Papaya to use full width of container */
-            height: 100% !important; /* Force Papaya to use full height of container */
         }
         #regionControls {
             width: 28%;
@@ -85,10 +77,9 @@
             background-color: #fff;
             border: 1px solid #ddd;
             border-radius: 5px;
-            margin-left: 2%;
         }
         .region-toggle {
-            margin-bottom: 10px;
+            margin-bottom: 5px;
         }
         .region-toggle label {
             margin-left: 5px;
@@ -132,21 +123,21 @@
     var atlasVolume = null;
     var originalAtlasData = null;
 
-	function loadRegionLabels() {
-		return fetch('data/region_labels.txt')
-			.then(response => response.text())
-			.then(text => {
-				text.split('\n').forEach(line => {
-					if (line.trim() !== '') {
-						const [fullName, index] = line.split(': ');
-						regionLabels[index] = { shortName: fullName, fullName: fullName };
-					}
-				});
-				console.log('Loaded region labels:', regionLabels);  // Debugging log
-			})
-			.catch(error => console.error('Error loading region labels:', error));
-	}
-
+    // Function to load region labels
+    function loadRegionLabels() {
+        return fetch('data/region_labels.txt')
+            .then(response => response.text())
+            .then(text => {
+                text.split('\n').forEach(line => {
+                    if (line.trim() !== '') {
+                        const [index, shortName, fullName] = line.split('\t');
+                        regionLabels[index] = { shortName, fullName };
+                    }
+                });
+                console.log('Loaded region labels:', regionLabels);  // Debugging log
+            })
+            .catch(error => console.error('Error loading region labels:', error));
+    }
 
     // Load region labels when the page loads
     window.onload = function() {
@@ -188,7 +179,6 @@
                 max: 45
             };
 
-            // Initialize Papaya
             papaya.Container.addViewer("papayaContainer", params, function(err, viewer) {
                 if (err) {
                     console.error("Error loading viewer:", err);
@@ -199,13 +189,13 @@
                     
                     // Wait for images to load
                     const checkImages = setInterval(() => {
-                        if (currentViewer.screenVolumes && currentViewer.screenVolumes.length > 1) {
+                        if (viewer.screenVolumes && viewer.screenVolumes.length > 1) {
                             clearInterval(checkImages);
-                            atlasVolume = currentViewer.screenVolumes[1].volume;
+                            atlasVolume = viewer.screenVolumes[1].volume;
                             
                             if (atlasVolume && atlasVolume.imageData) {
                                 originalAtlasData = new Uint8Array(atlasVolume.imageData.buffer);
-                                createRegionToggles(currentViewer);
+                                createRegionToggles(viewer);
                                 console.log("Region toggles created");  // Debugging log
                             } else {
                                 console.error("Atlas volume or imageData is undefined");
@@ -215,33 +205,31 @@
                     }, 100);
                 }
             });
-
         } catch (error) {
             console.error("Error initializing Papaya viewer:", error);
             container.innerHTML += `<p>Error loading viewer: ${error.message}</p>`;
         }
     }
 
-	function createRegionToggles(viewer) {
-		const controlsContainer = document.getElementById('regionControls');
-		controlsContainer.innerHTML = '<h3>Region Controls</h3>';  // Add a header
+    function createRegionToggles(viewer) {
+        const controlsContainer = document.getElementById('regionControls');
+        controlsContainer.innerHTML = '<h3>Region Controls</h3>';  // Add a header
 
-		Object.entries(regionLabels).forEach(([index, { fullName }]) => {
-			const toggle = document.createElement('div');
-			toggle.className = 'region-toggle';
-			toggle.innerHTML = `
-				<input type="checkbox" id="region${index}" checked>
-				<label for="region${index}">${fullName}</label>
-			`;
-			toggle.querySelector('input').addEventListener('change', function() {
-				toggleRegion(viewer, parseInt(index), this.checked);
-			});
-			controlsContainer.appendChild(toggle);
-		});
+        Object.entries(regionLabels).forEach(([index, { shortName, fullName }]) => {
+            const toggle = document.createElement('div');
+            toggle.className = 'region-toggle';
+            toggle.innerHTML = `
+                <input type="checkbox" id="region${index}" checked>
+                <label for="region${index}">${fullName}</label>
+            `;
+            toggle.querySelector('input').addEventListener('change', function() {
+                toggleRegion(viewer, parseInt(index), this.checked);
+            });
+            controlsContainer.appendChild(toggle);
+        });
 
-		console.log(`Created ${Object.keys(regionLabels).length} region toggles`);  // Debugging log
-	}
-
+        console.log(`Created ${Object.keys(regionLabels).length} region toggles`);  // Debugging log
+    }
 
     function toggleRegion(viewer, regionIndex, isVisible) {
         if (!viewer) {
