@@ -63,6 +63,14 @@
             height: 600px;
             margin: 0 auto;
         }
+        #regionControls {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .region-toggle {
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -96,6 +104,28 @@
 <script type="text/javascript">
     var params = [];
     var papayaContainers = [];
+    var regionLabels = {};
+
+    // Function to load region labels
+    function loadRegionLabels() {
+        fetch('data/region_labels.txt')
+            .then(response => response.text())
+            .then(text => {
+                text.split('\n').forEach(line => {
+                    if (line.trim() !== '') {
+                        const [index, shortName, fullName] = line.split('\t');
+                        regionLabels[index] = { shortName, fullName };
+                    }
+                });
+            })
+            .catch(error => console.error('Error loading region labels:', error));
+    }
+
+    // Load region labels when the page loads
+    window.onload = function() {
+        papaya.Container.startPapaya();
+        loadRegionLabels();
+    };
 
     function showHome() {
         const container = document.getElementById('content');
@@ -111,24 +141,65 @@
         container.innerHTML = `
             <h2>Interactive Brain Atlas Viewer</h2>
             <div id="papayaContainer"></div>
+            <div id="regionControls"></div>
         `;
 
         try {
             params = [];
             params['images'] = ['data/template.nii.gz', 'data/atlas.nii.gz'];
             params['atlas.nii.gz'] = {
-                lut: "Red Overlay",
-                alpha: 0.5
-            };
-            params['atlas'] = {
-                type: "label",
-                labels: "data/region_labels.txt"
+                lut: "Random",
+                alpha: 0.7,
+                min: 1,
+                max: 45
             };
 
-            papaya.Container.addViewer("papayaContainer", params);
+            papaya.Container.addViewer("papayaContainer", params, function(err, viewer) {
+                if (err) {
+                    console.error("Error loading viewer:", err);
+                    container.innerHTML += `<p>Error loading viewer: ${err.message}</p>`;
+                } else {
+                    console.log("Viewer loaded successfully");
+                    createRegionToggles(viewer);
+                }
+            });
         } catch (error) {
             console.error("Error initializing Papaya viewer:", error);
             container.innerHTML += `<p>Error loading viewer: ${error.message}</p>`;
+        }
+    }
+
+    function createRegionToggles(viewer) {
+        const controlsContainer = document.getElementById('regionControls');
+        Object.entries(regionLabels).forEach(([index, { shortName, fullName }]) => {
+            const toggle = document.createElement('div');
+            toggle.className = 'region-toggle';
+            toggle.innerHTML = `
+                <input type="checkbox" id="region${index}" checked>
+                <label for="region${index}">${fullName}</label>
+            `;
+            toggle.querySelector('input').addEventListener('change', function() {
+                toggleRegion(viewer, parseInt(index), this.checked);
+            });
+            controlsContainer.appendChild(toggle);
+        });
+    }
+
+    function toggleRegion(viewer, regionIndex, isVisible) {
+        const atlas = viewer.screenVolumes[1];
+        if (atlas) {
+            if (isVisible) {
+                atlas.updateMinLookup(Math.min(atlas.minLookup, regionIndex));
+                atlas.updateMaxLookup(Math.max(atlas.maxLookup, regionIndex));
+            } else {
+                if (regionIndex === atlas.minLookup) {
+                    atlas.updateMinLookup(regionIndex + 1);
+                }
+                if (regionIndex === atlas.maxLookup) {
+                    atlas.updateMaxLookup(regionIndex - 1);
+                }
+            }
+            viewer.drawViewer(true);
         }
     }
 
@@ -180,11 +251,6 @@
             <p>For queries or suggestions, please contact <strong><a href="mailto:pablo.naval.idi@gencat.cat">pablo.naval.idi@gencat.cat</a></strong>.</p>
         `;
     }
-
-    // Initialize Papaya when the page loads
-    window.onload = function() {
-        papaya.Container.startPapaya();
-    };
 </script>
 
 </body>
